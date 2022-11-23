@@ -87,10 +87,19 @@ jobs:
       - run:
           name: Show Rust version information
           command: rustc --version; cargo --version; rustup --version
+      - restore_cache:
+          keys:
+            - cargocache-v2-libwasmvm_windows-rust:1.59.0-{{ checksum "libwasmvm/Cargo.lock" }}
       - run:
           name: Run unit tests
           working_directory: libwasmvm
           command: cargo test
+      - save_cache:
+          paths:
+            - target/debug/.fingerprint
+            - target/debug/build
+            - target/debug/deps
+          key: cargocache-v2-libwasmvm_windows-rust:1.59.0-{{ checksum "libwasmvm/Cargo.lock" }}
 
   libwasmvm_audit:
     docker:
