@@ -89,17 +89,19 @@ jobs:
           command: rustc --version; cargo --version; rustup --version
       - restore_cache:
           keys:
-            - cargocache-v2-libwasmvm_windows-rust:1.59.0-{{ checksum "libwasmvm/Cargo.lock" }}
+            - cachev4-libwasmvm_windows-rust:1.59.0-{{ checksum "libwasmvm/Cargo.lock" }}
       - run:
           name: Run unit tests
           working_directory: libwasmvm
           command: cargo test
       - save_cache:
           paths:
-            - target/debug/.fingerprint
-            - target/debug/build
-            - target/debug/deps
-          key: cargocache-v2-libwasmvm_windows-rust:1.59.0-{{ checksum "libwasmvm/Cargo.lock" }}
+            # ".." is the easiest way to get $HOME here (pwd is $HOME\project)
+            - ../.cargo/registry
+            - libwasmvm/target/debug/.fingerprint
+            - libwasmvm/target/debug/build
+            - libwasmvm/target/debug/deps
+          key: cachev4-libwasmvm_windows-rust:1.59.0-{{ checksum "libwasmvm/Cargo.lock" }}
 
   libwasmvm_audit:
     docker:
