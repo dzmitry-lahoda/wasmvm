@@ -1,5 +1,8 @@
 version: 2.1
 
+orbs:
+  win: circleci/windows@5.0
+
 jobs:
   # All checks on the codebase that can run in parallel to build_shared_library
   libwasmvm_sanity:
@@ -64,6 +67,30 @@ jobs:
             - libwasmvm/target/release/build
             - libwasmvm/target/release/deps
           key: cargocache-v3-libwasmvm_sanity-rust:1.60.0-{{ checksum "libwasmvm/Cargo.lock" }}
+
+  libwasmvm_windows:
+    executor:
+      name: win/default
+      shell: bash.exe
+    steps:
+      - checkout
+      - run:
+          name: Reset git config set by CircleCI to make Cargo work
+          command: git config --global --unset url.ssh://git@github.com.insteadof
+      - run:
+          name: Install Rust
+          command: |
+            set -o errexit
+            curl -sS --output rustup-init.exe https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe
+            ./rustup-init.exe --no-modify-path --profile minimal --default-toolchain 1.59.0 -y
+            echo 'export PATH="$PATH;$USERPROFILE/.cargo/bin"' >> "$BASH_ENV"
+      - run:
+          name: Show Rust version information
+          command: rustc --version; cargo --version; rustup --version
+      - run:
+          name: Run unit tests
+          working_directory: libwasmvm
+          command: cargo test
 
   libwasmvm_audit:
     docker:
@@ -327,6 +354,7 @@ workflows:
   build_and_test:
     jobs:
       - libwasmvm_sanity
+      - libwasmvm_windows
       - libwasmvm_audit
       - format-go
       - wasmvm_no_cgo
