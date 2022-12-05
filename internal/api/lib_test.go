@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -23,10 +24,6 @@ const (
 )
 
 func TestInitAndReleaseCache(t *testing.T) {
-	dataDir := "/foo"
-	_, err := InitCache(dataDir, TESTING_FEATURES, TESTING_CACHE_SIZE, TESTING_MEMORY_LIMIT)
-	require.Error(t, err)
-
 	tmpdir, err := ioutil.TempDir("", "wasmvm-testing")
 	require.NoError(t, err)
 	defer os.RemoveAll(tmpdir)
@@ -34,6 +31,27 @@ func TestInitAndReleaseCache(t *testing.T) {
 	cache, err := InitCache(tmpdir, TESTING_FEATURES, TESTING_CACHE_SIZE, TESTING_MEMORY_LIMIT)
 	require.NoError(t, err)
 	ReleaseCache(cache)
+}
+
+// wasmd expectes us to create the base directory
+// https://github.com/CosmWasm/wasmd/blob/v0.30.0/x/wasm/keeper/keeper.go#L128
+func TestInitCacheWorksForNonExistentDir(t *testing.T) {
+	tmpdir, err := ioutil.TempDir("", "wasmvm-testing")
+	require.NoError(t, err)
+	defer os.RemoveAll(tmpdir)
+
+	createMe := filepath.Join(tmpdir, "does-not-yet-exist")
+	cache, err := InitCache(createMe, TESTING_FEATURES, TESTING_CACHE_SIZE, TESTING_MEMORY_LIMIT)
+	require.NoError(t, err)
+	ReleaseCache(cache)
+}
+
+func TestInitCacheErrorsForBrokenDir(t *testing.T) {
+	// use colon to make this fail on Windows
+	// https://gist.github.com/doctaphred/d01d05291546186941e1b7ddc02034d3
+	cannotBeCreated := "/foo:bar"
+	_, err := InitCache(cannotBeCreated, TESTING_FEATURES, TESTING_CACHE_SIZE, TESTING_MEMORY_LIMIT)
+	require.ErrorContains(t, err, "Error creating state directory")
 }
 
 func TestInitCacheEmptyFeatures(t *testing.T) {
