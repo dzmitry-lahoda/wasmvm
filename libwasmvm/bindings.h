@@ -108,10 +108,10 @@ typedef struct ByteSliceView {
  * Transferring ownership from Rust to Go using return values of FFI calls:
  *
  * ```
- * # use wasmvm::{cache_t, ByteSliceView, UnmanagedVector};
+ * # use wasmvm::{CachePtr, ByteSliceView, UnmanagedVector};
  * #[no_mangle]
  * pub extern "C" fn save_wasm_to_cache(
- *     cache: *mut cache_t,
+ *     cache: CachePtr,
  *     wasm: ByteSliceView,
  *     error_msg: Option<&mut UnmanagedVector>,
  * ) -> UnmanagedVector {
@@ -189,10 +189,6 @@ typedef struct UnmanagedVector {
   uintptr_t cap;
 } UnmanagedVector;
 
-typedef struct cache_t {
-
-} cache_t;
-
 /**
  * A struct that holds a pointer to the cache. This struct can be
  * copied freely.
@@ -202,7 +198,7 @@ typedef struct cache_t {
  * and `Metrics`, we use thiy type.
  */
 typedef struct CachePtr {
-  struct cache_t *ptr;
+  void *ptr;
 } CachePtr;
 
 /**
@@ -322,42 +318,42 @@ int32_t init_cache(struct ByteSliceView data_dir,
                    struct UnmanagedVector *error_msg,
                    struct CachePtr *out);
 
-int32_t save_wasm(struct cache_t *cache,
+int32_t save_wasm(struct CachePtr cache,
                   struct ByteSliceView wasm,
                   struct UnmanagedVector *error_msg,
                   struct UnmanagedVector *out);
 
-int32_t load_wasm(struct cache_t *cache,
+int32_t load_wasm(struct CachePtr cache,
                   struct ByteSliceView checksum,
                   struct UnmanagedVector *error_msg,
                   struct UnmanagedVector *out);
 
-int32_t pin(struct cache_t *cache,
+int32_t pin(struct CachePtr cache,
             struct ByteSliceView checksum,
             struct UnmanagedVector *error_msg);
 
-int32_t unpin(struct cache_t *cache,
+int32_t unpin(struct CachePtr cache,
               struct ByteSliceView checksum,
               struct UnmanagedVector *error_msg);
 
-int32_t analyze_code(struct cache_t *cache,
+int32_t analyze_code(struct CachePtr cache,
                      struct ByteSliceView checksum,
                      struct UnmanagedVector *error_msg,
                      struct AnalysisReport *out);
 
-int32_t get_metrics(struct cache_t *cache, struct UnmanagedVector *error_msg, struct Metrics *out);
+int32_t get_metrics(struct CachePtr cache, struct UnmanagedVector *error_msg, struct Metrics *out);
 
 /**
  * frees a cache reference
  *
  * # Safety
  *
- * This must be called exactly once for any `*cache_t` returned by `init_cache`
+ * This must be called exactly once for any `CachePtr` returned by `init_cache`
  * and cannot be called on any other pointer.
  */
-void release_cache(struct cache_t *cache);
+void release_cache(struct CachePtr cache);
 
-struct UnmanagedVector instantiate(struct cache_t *cache,
+struct UnmanagedVector instantiate(struct CachePtr cache,
                                    struct ByteSliceView checksum,
                                    struct ByteSliceView env,
                                    struct ByteSliceView info,
@@ -370,7 +366,7 @@ struct UnmanagedVector instantiate(struct cache_t *cache,
                                    uint64_t *gas_used,
                                    struct UnmanagedVector *error_msg);
 
-struct UnmanagedVector execute(struct cache_t *cache,
+struct UnmanagedVector execute(struct CachePtr cache,
                                struct ByteSliceView checksum,
                                struct ByteSliceView env,
                                struct ByteSliceView info,
@@ -383,7 +379,7 @@ struct UnmanagedVector execute(struct cache_t *cache,
                                uint64_t *gas_used,
                                struct UnmanagedVector *error_msg);
 
-struct UnmanagedVector migrate(struct cache_t *cache,
+struct UnmanagedVector migrate(struct CachePtr cache,
                                struct ByteSliceView checksum,
                                struct ByteSliceView env,
                                struct ByteSliceView msg,
@@ -395,7 +391,7 @@ struct UnmanagedVector migrate(struct cache_t *cache,
                                uint64_t *gas_used,
                                struct UnmanagedVector *error_msg);
 
-struct UnmanagedVector sudo(struct cache_t *cache,
+struct UnmanagedVector sudo(struct CachePtr cache,
                             struct ByteSliceView checksum,
                             struct ByteSliceView env,
                             struct ByteSliceView msg,
@@ -407,7 +403,7 @@ struct UnmanagedVector sudo(struct cache_t *cache,
                             uint64_t *gas_used,
                             struct UnmanagedVector *error_msg);
 
-struct UnmanagedVector reply(struct cache_t *cache,
+struct UnmanagedVector reply(struct CachePtr cache,
                              struct ByteSliceView checksum,
                              struct ByteSliceView env,
                              struct ByteSliceView msg,
@@ -419,7 +415,7 @@ struct UnmanagedVector reply(struct cache_t *cache,
                              uint64_t *gas_used,
                              struct UnmanagedVector *error_msg);
 
-struct UnmanagedVector query(struct cache_t *cache,
+struct UnmanagedVector query(struct CachePtr cache,
                              struct ByteSliceView checksum,
                              struct ByteSliceView env,
                              struct ByteSliceView msg,
@@ -431,7 +427,7 @@ struct UnmanagedVector query(struct cache_t *cache,
                              uint64_t *gas_used,
                              struct UnmanagedVector *error_msg);
 
-struct UnmanagedVector ibc_channel_open(struct cache_t *cache,
+struct UnmanagedVector ibc_channel_open(struct CachePtr cache,
                                         struct ByteSliceView checksum,
                                         struct ByteSliceView env,
                                         struct ByteSliceView msg,
@@ -443,7 +439,7 @@ struct UnmanagedVector ibc_channel_open(struct cache_t *cache,
                                         uint64_t *gas_used,
                                         struct UnmanagedVector *error_msg);
 
-struct UnmanagedVector ibc_channel_connect(struct cache_t *cache,
+struct UnmanagedVector ibc_channel_connect(struct CachePtr cache,
                                            struct ByteSliceView checksum,
                                            struct ByteSliceView env,
                                            struct ByteSliceView msg,
@@ -455,7 +451,7 @@ struct UnmanagedVector ibc_channel_connect(struct cache_t *cache,
                                            uint64_t *gas_used,
                                            struct UnmanagedVector *error_msg);
 
-struct UnmanagedVector ibc_channel_close(struct cache_t *cache,
+struct UnmanagedVector ibc_channel_close(struct CachePtr cache,
                                          struct ByteSliceView checksum,
                                          struct ByteSliceView env,
                                          struct ByteSliceView msg,
@@ -467,7 +463,7 @@ struct UnmanagedVector ibc_channel_close(struct cache_t *cache,
                                          uint64_t *gas_used,
                                          struct UnmanagedVector *error_msg);
 
-struct UnmanagedVector ibc_packet_receive(struct cache_t *cache,
+struct UnmanagedVector ibc_packet_receive(struct CachePtr cache,
                                           struct ByteSliceView checksum,
                                           struct ByteSliceView env,
                                           struct ByteSliceView msg,
@@ -479,7 +475,7 @@ struct UnmanagedVector ibc_packet_receive(struct cache_t *cache,
                                           uint64_t *gas_used,
                                           struct UnmanagedVector *error_msg);
 
-struct UnmanagedVector ibc_packet_ack(struct cache_t *cache,
+struct UnmanagedVector ibc_packet_ack(struct CachePtr cache,
                                       struct ByteSliceView checksum,
                                       struct ByteSliceView env,
                                       struct ByteSliceView msg,
@@ -491,7 +487,7 @@ struct UnmanagedVector ibc_packet_ack(struct cache_t *cache,
                                       uint64_t *gas_used,
                                       struct UnmanagedVector *error_msg);
 
-struct UnmanagedVector ibc_packet_timeout(struct cache_t *cache,
+struct UnmanagedVector ibc_packet_timeout(struct CachePtr cache,
                                           struct ByteSliceView checksum,
                                           struct ByteSliceView env,
                                           struct ByteSliceView msg,

@@ -12,9 +12,6 @@ use crate::memory::{ByteSliceView, UnmanagedVector};
 use crate::querier::GoQuerier;
 use crate::storage::GoStorage;
 
-#[repr(C)]
-pub struct cache_t {}
-
 /// A struct that holds a pointer to the cache. This struct can be
 /// copied freely.
 ///
@@ -24,7 +21,7 @@ pub struct cache_t {}
 #[repr(C)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct CachePtr {
-    pub ptr: *mut cache_t,
+    pub ptr: *mut std::ffi::c_void,
 }
 
 impl Default for CachePtr {
@@ -38,21 +35,20 @@ impl Default for CachePtr {
 impl CachePtr {
     pub fn new(rust_ptr: *mut Cache<GoApi, GoStorage, GoQuerier>) -> Self {
         Self {
-            ptr: rust_ptr as *mut cache_t,
+            ptr: rust_ptr as *mut std::ffi::c_void,
         }
     }
 
-    #[cfg(test)]
     pub fn is_null(self) -> bool {
         self.ptr.is_null()
     }
 }
 
-pub fn to_cache(ptr: *mut cache_t) -> Option<&'static mut Cache<GoApi, GoStorage, GoQuerier>> {
-    if ptr.is_null() {
+pub fn to_cache(cache: CachePtr) -> Option<&'static mut Cache<GoApi, GoStorage, GoQuerier>> {
+    if cache.is_null() {
         None
     } else {
-        let c = unsafe { &mut *(ptr as *mut Cache<GoApi, GoStorage, GoQuerier>) };
+        let c = unsafe { &mut *(cache.ptr as *mut Cache<GoApi, GoStorage, GoQuerier>) };
         Some(c)
     }
 }
@@ -118,7 +114,7 @@ fn do_init_cache(
 #[no_mangle]
 #[must_use]
 pub extern "C" fn save_wasm(
-    cache: *mut cache_t,
+    cache: CachePtr,
     wasm: ByteSliceView,
     error_msg: Option<&mut UnmanagedVector>,
     out: Option<&mut UnmanagedVector>,
@@ -144,7 +140,7 @@ fn do_save_wasm(
 #[no_mangle]
 #[must_use]
 pub extern "C" fn load_wasm(
-    cache: *mut cache_t,
+    cache: CachePtr,
     checksum: ByteSliceView,
     error_msg: Option<&mut UnmanagedVector>,
     out: Option<&mut UnmanagedVector>,
@@ -173,7 +169,7 @@ fn do_load_wasm(
 #[no_mangle]
 #[must_use]
 pub extern "C" fn pin(
-    cache: *mut cache_t,
+    cache: CachePtr,
     checksum: ByteSliceView,
     error_msg: Option<&mut UnmanagedVector>,
 ) -> i32 {
@@ -200,7 +196,7 @@ fn do_pin(
 #[no_mangle]
 #[must_use]
 pub extern "C" fn unpin(
-    cache: *mut cache_t,
+    cache: CachePtr,
     checksum: ByteSliceView,
     error_msg: Option<&mut UnmanagedVector>,
 ) -> i32 {
@@ -262,7 +258,7 @@ fn set_to_csv(set: HashSet<String>) -> String {
 #[no_mangle]
 #[must_use]
 pub extern "C" fn analyze_code(
-    cache: *mut cache_t,
+    cache: CachePtr,
     checksum: ByteSliceView,
     error_msg: Option<&mut UnmanagedVector>,
     out: Option<&mut AnalysisReport>,
@@ -340,7 +336,7 @@ impl From<cosmwasm_vm::Metrics> for Metrics {
 #[no_mangle]
 #[must_use]
 pub extern "C" fn get_metrics(
-    cache: *mut cache_t,
+    cache: CachePtr,
     error_msg: Option<&mut UnmanagedVector>,
     out: Option<&mut Metrics>,
 ) -> i32 {
@@ -361,13 +357,13 @@ fn do_get_metrics(cache: &mut Cache<GoApi, GoStorage, GoQuerier>) -> Result<Metr
 ///
 /// # Safety
 ///
-/// This must be called exactly once for any `*cache_t` returned by `init_cache`
+/// This must be called exactly once for any `CachePtr` returned by `init_cache`
 /// and cannot be called on any other pointer.
 #[no_mangle]
-pub extern "C" fn release_cache(cache: *mut cache_t) {
+pub extern "C" fn release_cache(cache: CachePtr) {
     if !cache.is_null() {
         // this will free cache when it goes out of scope
-        let _ = unsafe { Box::from_raw(cache as *mut Cache<GoApi, GoStorage, GoQuerier>) };
+        let _ = unsafe { Box::from_raw(cache.ptr as *mut Cache<GoApi, GoStorage, GoQuerier>) };
     }
 }
 
@@ -401,7 +397,7 @@ mod tests {
         assert!(error_msg.is_none());
         let _ = error_msg.consume();
 
-        release_cache(out.ptr);
+        release_cache(out);
     }
 
     #[test]
@@ -447,7 +443,7 @@ mod tests {
         assert_eq!(error, 0);
         assert!(error_msg.is_none());
         let _ = error_msg.consume();
-        let cache_ptr = out.ptr;
+        let cache_ptr = out;
 
         let mut error_msg = UnmanagedVector::default();
         let mut out = UnmanagedVector::default();
@@ -484,7 +480,7 @@ mod tests {
         assert_eq!(error, 0);
         assert!(error_msg.is_none());
         let _ = error_msg.consume();
-        let cache_ptr = out.ptr;
+        let cache_ptr = out;
 
         let mut error_msg = UnmanagedVector::default();
         let mut out = UnmanagedVector::default();
@@ -534,7 +530,7 @@ mod tests {
         assert_eq!(error, 0);
         assert!(error_msg.is_none());
         let _ = error_msg.consume();
-        let cache_ptr = out.ptr;
+        let cache_ptr = out;
 
         let mut error_msg = UnmanagedVector::default();
         let mut out = UnmanagedVector::default();
@@ -591,7 +587,7 @@ mod tests {
         assert_eq!(error, 0);
         assert!(error_msg.is_none());
         let _ = error_msg.consume();
-        let cache_ptr = out.ptr;
+        let cache_ptr = out;
 
         let mut error_msg = UnmanagedVector::default();
         let mut out = UnmanagedVector::default();
@@ -658,7 +654,7 @@ mod tests {
         assert_eq!(error, 0);
         assert!(error_msg.is_none());
         let _ = error_msg.consume();
-        let cache_ptr = out.ptr;
+        let cache_ptr = out;
 
         let mut error_msg = UnmanagedVector::default();
         let mut out = UnmanagedVector::default();
@@ -766,7 +762,7 @@ mod tests {
         assert_eq!(error, 0);
         assert!(error_msg.is_none());
         let _ = error_msg.consume();
-        let cache_ptr = out.ptr;
+        let cache_ptr = out;
 
         // Get metrics 1
         let mut error_msg = UnmanagedVector::default();
