@@ -453,7 +453,7 @@ func TestExecuteCpuLoop(t *testing.T) {
 	diff := time.Now().Sub(start)
 	require.NoError(t, err)
 	requireOkResponse(t, res, 0)
-	assert.Equal(t, uint64(0xf5c79de0), cost)
+	assert.Equal(t, uint64(0xd5e366d0), cost)
 	t.Logf("Time (%d gas): %s\n", cost, diff)
 
 	// execute a cpu loop
