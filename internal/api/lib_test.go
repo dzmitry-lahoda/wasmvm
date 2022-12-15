@@ -392,6 +392,46 @@ func TestExecute(t *testing.T) {
 	assert.Equal(t, expectedData, result.Ok.Data)
 }
 
+func TestExecuteStorageLoop(t *testing.T) {
+	cache, cleanup := withCache(t)
+	defer cleanup()
+	checksum := createHackatomContract(t, cache)
+
+	maxGas := TESTING_GAS_LIMIT
+	gasMeter1 := NewMockGasMeter(maxGas)
+	igasMeter1 := types.GasMeter(gasMeter1)
+	// instantiate it with this store
+	store := NewLookup(gasMeter1)
+	api := NewMockAPI()
+	balance := types.Coins{types.NewCoin(250, "ATOM")}
+	querier := DefaultQuerier(MOCK_CONTRACT_ADDR, balance)
+	env := MockEnvBin(t)
+	info := MockInfoBin(t, "creator")
+
+	msg := []byte(`{"verifier": "fred", "beneficiary": "bob"}`)
+
+	res, cost, err := Instantiate(cache, checksum, env, info, msg, &igasMeter1, store, api, &querier, maxGas, TESTING_PRINT_DEBUG)
+	require.NoError(t, err)
+	requireOkResponse(t, res, 0)
+
+	// execute a storage loop
+	gasMeter2 := NewMockGasMeter(maxGas)
+	igasMeter2 := types.GasMeter(gasMeter2)
+	store.SetGasMeter(gasMeter2)
+	info = MockInfoBin(t, "fred")
+	start := time.Now()
+	res, cost, err = Execute(cache, checksum, env, info, []byte(`{"storage_loop":{}}`), &igasMeter2, store, api, &querier, maxGas, TESTING_PRINT_DEBUG)
+	diff := time.Now().Sub(start)
+	require.Error(t, err)
+	t.Logf("StorageLoop Time (%d gas): %s\n", cost, diff)
+	t.Logf("Gas used: %d\n", gasMeter2.GasConsumed())
+	t.Logf("Wasm gas: %d\n", cost)
+
+	// the "sdk gas" * GasMultiplier + the wasm cost should equal the maxGas (or be very close)
+	totalCost := cost + gasMeter2.GasConsumed()
+	require.Equal(t, int64(maxGas), int64(totalCost))
+}
+
 func TestExecuteCpuLoop(t *testing.T) {
 	cache, cleanup := withCache(t)
 	defer cleanup()
@@ -468,46 +508,6 @@ func TestExecuteCpuLoopOld(t *testing.T) {
 	require.Error(t, err)
 	assert.Equal(t, cost, maxGas)
 	t.Logf("CPULoop Time (%d gas): %s\n", cost, diff)
-}
-
-func TestExecuteStorageLoop(t *testing.T) {
-	cache, cleanup := withCache(t)
-	defer cleanup()
-	checksum := createHackatomContract(t, cache)
-
-	maxGas := TESTING_GAS_LIMIT
-	gasMeter1 := NewMockGasMeter(maxGas)
-	igasMeter1 := types.GasMeter(gasMeter1)
-	// instantiate it with this store
-	store := NewLookup(gasMeter1)
-	api := NewMockAPI()
-	balance := types.Coins{types.NewCoin(250, "ATOM")}
-	querier := DefaultQuerier(MOCK_CONTRACT_ADDR, balance)
-	env := MockEnvBin(t)
-	info := MockInfoBin(t, "creator")
-
-	msg := []byte(`{"verifier": "fred", "beneficiary": "bob"}`)
-
-	res, cost, err := Instantiate(cache, checksum, env, info, msg, &igasMeter1, store, api, &querier, maxGas, TESTING_PRINT_DEBUG)
-	require.NoError(t, err)
-	requireOkResponse(t, res, 0)
-
-	// execute a storage loop
-	gasMeter2 := NewMockGasMeter(maxGas)
-	igasMeter2 := types.GasMeter(gasMeter2)
-	store.SetGasMeter(gasMeter2)
-	info = MockInfoBin(t, "fred")
-	start := time.Now()
-	res, cost, err = Execute(cache, checksum, env, info, []byte(`{"storage_loop":{}}`), &igasMeter2, store, api, &querier, maxGas, TESTING_PRINT_DEBUG)
-	diff := time.Now().Sub(start)
-	require.Error(t, err)
-	t.Logf("StorageLoop Time (%d gas): %s\n", cost, diff)
-	t.Logf("Gas used: %d\n", gasMeter2.GasConsumed())
-	t.Logf("Wasm gas: %d\n", cost)
-
-	// the "sdk gas" * GasMultiplier + the wasm cost should equal the maxGas (or be very close)
-	totalCost := cost + gasMeter2.GasConsumed()
-	require.Equal(t, int64(maxGas), int64(totalCost))
 }
 
 func TestExecuteUserErrorsInApiCalls(t *testing.T) {
